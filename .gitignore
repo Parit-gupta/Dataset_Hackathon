@@ -52,7 +52,6 @@ datasets/
 *.csv
 *.tsv
 *.xlsx
-*.json
 *.parquet
 
 # ===============================

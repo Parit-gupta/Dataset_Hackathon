@@ -24,7 +24,7 @@ from config import (
 try:
     import sys
     sys.path.append('ai_app/asr')
-    from asr_engine import transcribe_audio
+    from ai_app.asr.asr_engine import transcribe_audio
     ASR_AVAILABLE = True
 except ImportError:
     ASR_AVAILABLE = False
