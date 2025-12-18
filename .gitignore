@@ -1,14 +1,82 @@
-# Python virtual environment
-venv/
-.env/
-
-# Python cache
+# ===============================
+# Python
+# ===============================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
+# ===============================
+# Virtual Environments
+# ===============================
+venv/
+env/
+.venv/
+conda-env/
+.env/
+.env.*
+
+# ===============================
+# Jupyter Notebook
+# ===============================
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# ===============================
 # VS Code
+# ===============================
 .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
 
-# OS files
+# ===============================
+# OS Files
+# ===============================
 .DS_Store
 Thumbs.db
+
+# ===============================
+# Logs
+# ===============================
+*.log
+
+# ===============================
+# Database (IMPORTANT)
+# ===============================
+users.db
+
+# ===============================
+# Data / Models (Big Data / ML)
+# ===============================
+data/
+datasets/
+*.csv
+*.tsv
+*.xlsx
+*.json
+*.parquet
+
+# ===============================
+# Model files
+# ===============================
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+
+# ===============================
+# Build / Cache
+# ===============================
+build/
+dist/
+*.egg-info/
+.cache/
+
+# ===============================
+# Node (if GenAI frontend used)
+# ===============================
+node_modules/
+npm-debug.log*
+yarn-error.log*
