@@ -9,14 +9,16 @@ c = conn.cursor()
 def hash_password(password: str) -> bytes:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 
+
 def check_password(password: str, hashed: bytes) -> bool:
     return bcrypt.checkpw(password.encode(), hashed)
+
 
 # ---------------- USER OPERATIONS ----------------
 def add_user(username: str, email: str, password: str) -> bool:
     """
     Adds a new user to the database.
-    Returns True if successful, False if user already exists or invalid input.
+    Returns True if successful, False otherwise.
     """
     if not username or not email or not password:
         return False
@@ -24,15 +26,22 @@ def add_user(username: str, email: str, password: str) -> bool:
     try:
         c.execute(
             "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-            (username.strip(), email.strip().lower(), hash_password(password))
+            (
+                username.strip(),
+                email.strip().lower(),
+                hash_password(password),
+            ),
         )
         conn.commit()
         return True
+
     except sqlite3.IntegrityError:
         # Email already exists
         return False
+
     except Exception:
         return False
+
 
 def login_user(email: str, password: str) -> bool:
     """
@@ -43,8 +52,8 @@ def login_user(email: str, password: str) -> bool:
         return False
 
     c.execute(
-        "SELECT password FROM users WHERE email=?",
-        (email.strip().lower(),)
+        "SELECT password FROM users WHERE email = ?",
+        (email.strip().lower(),),
     )
     result = c.fetchone()
 
