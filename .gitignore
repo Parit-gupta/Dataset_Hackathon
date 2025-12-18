@@ -80,3 +80,7 @@ dist/
 node_modules/
 npm-debug.log*
 yarn-error.log*
+
+adv_rag.py
+.env
+*.env
