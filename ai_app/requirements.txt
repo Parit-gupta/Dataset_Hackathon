@@ -1,6 +1,0 @@
-streamlit
-pandas
-bcrypt
-faiss-cpu
-sentence-transformers
-openai
