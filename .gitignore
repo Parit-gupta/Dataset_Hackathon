@@ -1,7 +1,7 @@
 # ===============================
 # Python
 # ===============================
-_pycache_/
+__pycache__/
 *.py[cod]
 *$py.class
 
@@ -13,6 +13,7 @@ env/
 .venv/
 conda-env/
 .env/
+.env.*
 
 # ===============================
 # Jupyter Notebook
@@ -37,6 +38,11 @@ Thumbs.db
 # Logs
 # ===============================
 *.log
+
+# ===============================
+# Database (IMPORTANT)
+# ===============================
+users.db
 
 # ===============================
 # Data / Models (Big Data / ML)
@@ -67,14 +73,6 @@ build/
 dist/
 *.egg-info/
 .cache/
-
-# ===============================
-# Secrets
-# ===============================
-.env
-.env.*
-secrets.json
-config.json
 
 # ===============================
 # Node (if GenAI frontend used)
