@@ -1,0 +1,14 @@
+streamlit
+pandas
+bcrypt
+faiss-cpu
+sentence-transformers
+openai
+numpy
+kagglehub
+groq
+tqdm
+torch
+transformers
+scikit-learn
+openai-whisper
