@@ -16,5 +16,23 @@
     "created_at": "2025-12-19T03:50:13.605339",
     "assessments_taken": [],
     "assessments_created": []
+  },
+  "student1@gmail.com": {
+    "username": "student1",
+    "email": "student1@gmail.com",
+    "password": "264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb",
+    "role": "student",
+    "created_at": "2025-12-19T10:18:30.421350",
+    "assessments_taken": [],
+    "assessments_created": null
+  },
+  "student2@gmail.com": {
+    "username": "STudent15",
+    "email": "student2@gmail.com",
+    "password": "264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb",
+    "role": "student",
+    "created_at": "2025-12-19T10:19:39.037285",
+    "assessments_taken": [],
+    "assessments_created": null
   }
 }
