@@ -1,260 +1,229 @@
 """
-Student Assessment Page - Word Pronunciation with Whisper ASR Integration
+Student Assessment Page
+- Uses assessments.json (tests[])
+- Whisper ASR
+- Stores full responses
+- Shows System Explanation after test
 """
 
-import streamlit as st
+import json
 import os
 from datetime import datetime
+import streamlit as st
 from audio_recorder_streamlit import audio_recorder
-from utils import load_assessments, navigate_to
-from config import (
-    ASSESSMENT_TYPE_WORD_PRONUNCIATION,
-    ASSESSMENT_TYPE_IMAGE,
-    ASSESSMENT_TYPE_FILLBLANK,
-    AUDIO_SAMPLE_RATE,
-    AUDIO_PAUSE_THRESHOLD,
-    PRONUNCIATION_EXACT_MATCH,
-    PRONUNCIATION_CLOSE_MATCH,
-    PRONUNCIATION_PARTIAL_MATCH,
-    PRONUNCIATION_NO_MATCH
-)
 
-# ✅ RESULT STORAGE
+from utils import navigate_to
+from config import AUDIO_SAMPLE_RATE, AUDIO_PAUSE_THRESHOLD
+
 from ai_app.utils.results_store import save_result
+from ai_app.rag.explanation import generate_explanation
 
-# ================= ASR ENGINE =================
+
+# ================= ASR =================
 try:
     import sys
     sys.path.append("ai_app/asr")
     from ai_app.asr.asr_engine import transcribe_audio
     ASR_AVAILABLE = True
-except ImportError:
+except Exception:
     ASR_AVAILABLE = False
-    st.warning("⚠️ ASR engine not available")
+    st.warning("⚠️ Whisper ASR not available")
 
-# ================= AUDIO DIR =================
-AUDIO_SUBMISSIONS_DIR = "audio_submissions"
-os.makedirs(AUDIO_SUBMISSIONS_DIR, exist_ok=True)
+# ================= PATHS =================
+ASSESSMENT_JSON = "ai_app/assessments/assessments.json"
+AUDIO_DIR = "audio_submissions"
+os.makedirs(AUDIO_DIR, exist_ok=True)
 
 
-# =========================================================
+# ======================================================
+# LOAD TESTS
+# ======================================================
+def load_tests():
+    with open(ASSESSMENT_JSON, "r", encoding="utf-8") as f:
+        return json.load(f)["tests"]
+
+
+# ======================================================
 # MAIN PAGE
-# =========================================================
+# ======================================================
 def render_assessment_page():
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("## 🎤 TAKE ASSESSMENT")
-    st.markdown("---")
+    st.markdown("## 🎤 Take Pronunciation Assessment")
+    st.divider()
 
-    assessments = load_assessments().get("assessments", [])
+    st.session_state.setdefault("selected_test", None)
+    st.session_state.setdefault("current_q", 0)
+    st.session_state.setdefault("responses", [])
 
-    if not st.session_state.selected_assessment:
-        display_assessment_list(assessments)
+    if not st.session_state.selected_test:
+        render_test_list()
     else:
-        render_selected_assessment(st.session_state.selected_assessment)
-
-    st.markdown("</div>", unsafe_allow_html=True)
+        render_test_runner()
 
 
-def display_assessment_list(assessments):
-    st.markdown("### 📋 Available Assessments")
+# ======================================================
+# TEST LIST
+# ======================================================
+def render_test_list():
+    tests = load_tests()
 
-    if not assessments:
-        st.info("No assessments available")
-        return
+    for t in tests:
+        st.markdown("### 📘 " + t["title"])
+        st.caption(f"Language: {t['language']} | Questions: {len(t['questions'])}")
 
-    for a in assessments:
-        st.markdown('<div class="assessment-card">', unsafe_allow_html=True)
-        col1, col2 = st.columns([4, 1])
+        if st.button("Start Test", key=t["test_id"]):
+            st.session_state.selected_test = t
+            st.session_state.current_q = 0
+            st.session_state.responses = []
+            st.rerun()
 
-        with col1:
-            st.markdown(f"**{a['topic']}**")
-            st.caption(f"{a['type']} | Difficulty: {a['difficulty']}")
-
-        with col2:
-            if st.button("Start", key=f"start_{a['id']}"):
-                st.session_state.selected_assessment = a
-                st.session_state.current_question_index = 0
-                st.session_state.question_responses = []
-                st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.divider()
 
 
-def render_selected_assessment(assessment):
-    if assessment["type"] == ASSESSMENT_TYPE_WORD_PRONUNCIATION:
-        render_word_pronunciation_assessment(assessment)
-    elif assessment["type"] == ASSESSMENT_TYPE_IMAGE:
-        render_image_assessment(assessment)
-    elif assessment["type"] == ASSESSMENT_TYPE_FILLBLANK:
-        render_fillblank_assessment(assessment)
+# ======================================================
+# TEST RUNNER
+# ======================================================
+def render_test_runner():
+    test = st.session_state.selected_test
+    questions = test["questions"]
+    idx = st.session_state.current_q
 
-    st.markdown("---")
-    if st.button("← Choose Different Assessment"):
-        st.session_state.selected_assessment = None
-        st.session_state.current_question_index = 0
-        st.session_state.question_responses = []
+    st.markdown(f"### 🧪 {test['title']}")
+    st.progress(idx / len(questions))
+
+    if idx < len(questions):
+        render_word_question(questions[idx], idx, test)
+    else:
+        render_test_complete(test)
+
+
+# ======================================================
+# WORD QUESTION
+# ======================================================
+def render_word_question(question, idx, test):
+    expected_word = question["expected_text"]
+
+    st.markdown("### Pronounce this word:")
+    st.markdown(f"## 🗣️ **{expected_word}**")
+
+    audio = audio_recorder(
+        pause_threshold=AUDIO_PAUSE_THRESHOLD,
+        sample_rate=AUDIO_SAMPLE_RATE,
+        key=f"rec_{idx}"
+    )
+
+    if audio and st.button("Submit Pronunciation"):
+        audio_path = save_audio(audio, idx)
+        result = process_asr(audio_path, expected_word, test["language"])
+
+        if not result["success"]:
+            st.error(result["error"])
+            return
+
+        # ---------- SYSTEM EXPLANATION ----------
+        explanation = generate_explanation(
+            expected_text=expected_word,
+            spoken_text=result["text"],
+            word_score=result["score"],
+            missing_words=[] if expected_word in result["text"] else [expected_word],
+            extra_words=[],
+            phoneme_score=None
+        )
+
+        # ---------- SAVE RESPONSE (NO MASKING) ----------
+        st.session_state.responses.append({
+            "question_id": question["question_id"],
+            "word": expected_word,
+            "expected_text": expected_word,
+            "spoken_text": result["text"],
+            "transcription": result["text"],
+            "score": result["score"],
+            "accuracy": result["accuracy"],
+            "explanation": explanation
+        })
+
+        st.session_state.current_q += 1
         st.rerun()
 
 
-# =========================================================
-# AUDIO UTILS
-# =========================================================
-def save_audio_file(audio_input, audio_type, prefix):
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    user = st.session_state.get("username", "unknown")
-    path = os.path.join(AUDIO_SUBMISSIONS_DIR, f"{user}_{prefix}_{ts}.wav")
-
-    with open(path, "wb") as f:
-        f.write(audio_input if audio_type == "bytes" else audio_input.read())
-
-    return path
-
-
-# =========================================================
-# PRONUNCIATION LOGIC
-# =========================================================
-def evaluate_pronunciation(transcribed, expected):
-    t, e = transcribed.lower().strip(), expected.lower().strip()
-
-    if t == e:
-        return PRONUNCIATION_EXACT_MATCH, 100, "Perfect pronunciation!"
-    if e in t.split():
-        return PRONUNCIATION_CLOSE_MATCH, 85, "Good pronunciation!"
-    return PRONUNCIATION_NO_MATCH, 40, "Needs improvement"
-
-
-def process_audio_with_asr(audio_path, expected=None, language=None):
+# ======================================================
+# ASR + SCORING
+# ======================================================
+def process_asr(audio_path, expected, language):
     try:
-        result = transcribe_audio(audio_path, language)
-        score, acc, feedback = (85, 100, "Processed")
+        res = transcribe_audio(audio_path, language)
+        spoken = res["text"].lower().strip()
+        expected = expected.lower().strip()
 
-        if expected:
-            score, acc, feedback = evaluate_pronunciation(result["text"], expected)
+        if spoken == expected:
+            return success(spoken, 100)
+        elif expected in spoken:
+            return success(spoken, 80)
+        else:
+            return success(spoken, 40)
 
-        return {
-            "success": True,
-            "text": result["text"],
-            "language": result.get("language", "unknown"),
-            "score": score,
-            "accuracy": acc,
-            "feedback": feedback
-        }
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 
-# =========================================================
-# WORD PRONUNCIATION (✅ FIXED – NO OVERRIDE)
-# =========================================================
-def render_word_pronunciation_assessment(assessment):
-    words = assessment["words"]
-    idx = st.session_state.current_question_index
-
-    st.markdown(f"### 🗣️ {assessment['topic']}")
-    st.progress(idx / len(words))
-
-    if idx < len(words):
-        w = words[idx]
-
-        st.markdown(f"## **{w['word']}**")
-        if w.get("phonetic"):
-            st.caption(f"Pronunciation: {w['phonetic']}")
-        if w.get("example"):
-            st.info(f"Example: {w['example']}")
-
-        audio = audio_recorder(
-            pause_threshold=AUDIO_PAUSE_THRESHOLD,
-            sample_rate=AUDIO_SAMPLE_RATE,
-            key=f"rec_{idx}"
-        )
-
-        if audio and st.button("Submit"):
-            path = save_audio_file(audio, "bytes", f"word_{idx}")
-            res = process_audio_with_asr(path, w["word"])
-
-            if res["success"]:
-                st.session_state.question_responses.append({
-                    "word": w["word"],
-                    "transcription": res["text"],
-                    "score": res["score"],
-                    "accuracy": res["accuracy"]
-                })
-                st.session_state.current_question_index += 1
-                st.rerun()
-
-    else:
-        st.success("Assessment Completed 🎉")
-
-        if st.button("Submit Assessment 🚀"):
-            results = calculate_final_results(
-                st.session_state.question_responses,
-                assessment
-            )
-            st.session_state.assessment_results = results
-
-            # ✅ RESULT STORAGE
-            save_result({
-                "student": st.session_state.username,
-                "assessment_id": assessment["id"],
-                "assessment_topic": assessment["topic"],
-                "assessment_type": assessment["type"],
-                "score": results["score"],
-                "accuracy": results["accuracy"],
-                "responses": results["responses"],
-                "submitted_at": datetime.now().isoformat()
-            })
-
-            navigate_to("results")
-
-
-# =========================================================
-# IMAGE & FILL BLANK (UNCHANGED LOGIC)
-# =========================================================
-def render_image_assessment(assessment):
-    st.image(assessment["image_url"])
-    audio = audio_recorder(
-        pause_threshold=AUDIO_PAUSE_THRESHOLD,
-        sample_rate=AUDIO_SAMPLE_RATE
-    )
-
-    if audio:
-        path = save_audio_file(audio, "bytes", "image")
-        res = process_audio_with_asr(path)
-
-        st.session_state.assessment_results = {
-            "score": 85,
-            "accuracy": 100,
-            "transcription": res["text"],
-            "assessment_topic": assessment["topic"]
-        }
-
-        save_result({
-            "student": st.session_state.username,
-            "assessment_id": assessment["id"],
-            "assessment_topic": assessment["topic"],
-            "assessment_type": assessment["type"],
-            "score": 85,
-            "accuracy": 100,
-            "responses": [{"text": res["text"]}]
-        })
-
-        navigate_to("results")
-
-
-def render_fillblank_assessment(assessment):
-    st.info("Fill-in-Blank flow unchanged (works same as before)")
-
-
-# =========================================================
-# FINAL RESULTS
-# =========================================================
-def calculate_final_results(responses, assessment):
-    avg_score = sum(r["score"] for r in responses) / len(responses)
-    avg_acc = sum(r["accuracy"] for r in responses) / len(responses)
-
+def success(text, score):
     return {
-        "score": round(avg_score, 2),
-        "accuracy": round(avg_acc, 2),
-        "responses": responses,
-        "assessment_topic": assessment["topic"]
+        "success": True,
+        "text": text,
+        "score": score,
+        "accuracy": score
     }
+
+
+# ======================================================
+# AUDIO SAVE
+# ======================================================
+def save_audio(audio_bytes, idx):
+    user = st.session_state.get("username", "student")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = os.path.join(AUDIO_DIR, f"{user}_q{idx}_{ts}.wav")
+
+    with open(path, "wb") as f:
+        f.write(audio_bytes)
+
+    return path
+
+
+# ======================================================
+# TEST COMPLETE + EXPLANATION DISPLAY
+# ======================================================
+def render_test_complete(test):
+    st.success("✅ Test Completed")
+
+    scores = [r["score"] for r in st.session_state.responses]
+    avg_score = round(sum(scores) / len(scores), 2)
+
+    st.metric("Final Score", f"{avg_score}%")
+
+    # ================= SYSTEM EXPLANATION =================
+    st.markdown("## 🧠 System Explanation")
+
+    for r in st.session_state.responses:
+        st.markdown(f"### 🗣️ Word: **{r['word']}**")
+        st.markdown(f"Student said: **{r['spoken_text']}**")
+        st.markdown(f"Score: **{r['score']}%**")
+        st.info(r["explanation"])
+        st.divider()
+
+    # ================= SAVE RESULT =================
+    save_result({
+        "student": st.session_state.username,
+        "assessment_id": test["test_id"],
+        "assessment_topic": test["title"],
+        "assessment_type": "word_pronunciation",
+        "language": test["language"],
+        "score": avg_score,
+        "accuracy": avg_score,
+        "responses": st.session_state.responses,
+        "submitted_at": datetime.now().isoformat()
+    })
+
+    if st.button("Back to Tests"):
+        st.session_state.selected_test = None
+        st.session_state.current_q = 0
+        st.session_state.responses = []
+        st.rerun()

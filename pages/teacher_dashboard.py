@@ -1,14 +1,16 @@
 """
-Teacher Dashboard - Create and Manage Assessments
-Includes:
-- Word Pronunciation
-- Image Description
-- Fill in the Blank
+Teacher Dashboard
+- Create & Manage Assessments
+- JSON / Manual Assessments
 - Student Performance Analytics
+- XAI System Explanation
+- RAG Therapy Guidance
 """
 
 import streamlit as st
 from datetime import datetime
+import json
+import os
 
 from utils import (
     load_assessments,
@@ -23,24 +25,29 @@ from config import (
     ASSESSMENT_TYPE_FILLBLANK
 )
 
-# ================= RESULTS STORAGE =================
+# ================= RESULTS =================
 from ai_app.utils.results_store import load_results
-# ===================================================
+
+# ================= RAG =====================
+from ai_app.rag.chatbot import rag_chatbot
+
+# ================= XAI =====================
+from ai_app.rag.explanation import generate_explanation
+
+# ================= PATH ====================
+JSON_ASSESS_PATH = "data/assessment.json"
 
 
-# ===================================================
+# ======================================================
 # MAIN DASHBOARD
-# ===================================================
-
+# ======================================================
 def render_teacher_dashboard():
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("## 👨‍🏫 TEACHER DASHBOARD")
-    st.markdown("---")
+    st.markdown("## 👨‍🏫 Teacher Dashboard")
 
     tab1, tab2, tab3 = st.tabs([
         "📝 Create Assessment",
         "📋 My Assessments",
-        "📊 Statistics"
+        "📊 Analytics"
     ])
 
     with tab1:
@@ -50,17 +57,24 @@ def render_teacher_dashboard():
         render_assessment_list()
 
     with tab3:
-        render_teacher_stats()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        render_teacher_analytics()
 
 
-# ===================================================
+# ======================================================
 # CREATE ASSESSMENT
-# ===================================================
-
+# ======================================================
 def render_create_assessment():
-    st.markdown("### 🎯 Create New Assessment")
+    st.markdown("### 🎯 Create Assessment")
+
+    source = st.radio(
+        "Assessment Source",
+        ["Create Manually", "Use assessment.json"],
+        horizontal=True
+    )
+
+    if source == "Use assessment.json":
+        load_from_json()
+        return
 
     assessment_type = st.selectbox(
         "Assessment Type",
@@ -68,15 +82,8 @@ def render_create_assessment():
             ASSESSMENT_TYPE_WORD_PRONUNCIATION,
             ASSESSMENT_TYPE_IMAGE,
             ASSESSMENT_TYPE_FILLBLANK
-        ],
-        format_func=lambda x: {
-            ASSESSMENT_TYPE_WORD_PRONUNCIATION: "🗣️ Word Pronunciation",
-            ASSESSMENT_TYPE_IMAGE: "🖼️ Image Description",
-            ASSESSMENT_TYPE_FILLBLANK: "✍️ Fill in the Blank"
-        }[x]
+        ]
     )
-
-    st.markdown("---")
 
     if assessment_type == ASSESSMENT_TYPE_WORD_PRONUNCIATION:
         render_word_pronunciation_form()
@@ -86,49 +93,74 @@ def render_create_assessment():
         render_fillblank_form()
 
 
-# ===================================================
+# ======================================================
+# JSON ASSESSMENT IMPORT
+# ======================================================
+def load_from_json():
+    if not os.path.exists(JSON_ASSESS_PATH):
+        st.error("assessment.json not found")
+        return
+
+    with open(JSON_ASSESS_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    tests = data.get("tests", [])
+
+    for t in tests:
+        st.markdown(f"### 📘 {t['title']} ({t['language']})")
+
+        if st.button("Import", key=t["test_id"]):
+            assessment = {
+                "id": t["test_id"],
+                "topic": t["title"],
+                "type": ASSESSMENT_TYPE_WORD_PRONUNCIATION,
+                "language": t["language"],
+                "questions": t["questions"],
+                "created_by": st.session_state.username,
+                "created_at": datetime.now().isoformat(),
+                "source": "json"
+            }
+
+            data = load_assessments()
+            data["assessments"].append(assessment)
+            save_assessments(data)
+
+            st.success("Assessment imported successfully")
+            st.rerun()
+
+
+# ======================================================
 # WORD PRONUNCIATION FORM
-# ===================================================
-
+# ======================================================
 def render_word_pronunciation_form():
-    st.markdown("### 🗣️ Word Pronunciation Assessment")
+    with st.form("word_form"):
+        topic = st.text_input("Topic")
+        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"])
+        language = st.selectbox("Language", ["English", "Hindi", "Tamil"])
 
-    with st.form("word_pronunciation_form"):
-        topic = st.text_input("Topic / Title *")
-        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Medium")
-        language = st.selectbox("Language", ["English", "Tamil", "Hindi", "Spanish", "French", "German"])
-
-        num_words = st.number_input("Number of words", 1, 20, 5)
-
+        num = st.number_input("Number of Words", 1, 20, 5)
         words = []
-        for i in range(num_words):
-            st.markdown(f"#### Word {i+1}")
-            word = st.text_input(f"Word {i+1}", key=f"wp_word_{i}")
-            example = st.text_input(f"Example {i+1}", key=f"wp_ex_{i}")
-            phonetic = st.text_input(f"Phonetic {i+1}", key=f"wp_ph_{i}")
 
-            if word:
+        for i in range(num):
+            w = st.text_input(f"Word {i+1}")
+            ex = st.text_input(f"Example {i+1}")
+            ph = st.text_input(f"Phonetic {i+1}")
+
+            if w:
                 words.append({
-                    "word": word.strip(),
-                    "example": example.strip(),
-                    "phonetic": phonetic.strip()
+                    "word": w,
+                    "example": ex,
+                    "phonetic": ph
                 })
 
-        submitted = st.form_submit_button("Create Assessment 🚀")
-
-        if submitted:
-            if not topic or not words:
-                st.error("Please enter topic and at least one word")
-                return
-
+        if st.form_submit_button("Create"):
             assessment = {
                 "id": generate_assessment_id(),
-                "type": ASSESSMENT_TYPE_WORD_PRONUNCIATION,
                 "topic": topic,
                 "difficulty": difficulty,
                 "language": language,
+                "type": ASSESSMENT_TYPE_WORD_PRONUNCIATION,
                 "words": words,
-                "total_words": len(words),
                 "created_by": st.session_state.username,
                 "created_at": datetime.now().isoformat()
             }
@@ -137,38 +169,26 @@ def render_word_pronunciation_form():
             data["assessments"].append(assessment)
             save_assessments(data)
 
-            st.success("✅ Assessment Created")
+            st.success("Assessment created")
             st.rerun()
 
 
-# ===================================================
-# IMAGE ASSESSMENT FORM
-# ===================================================
-
+# ======================================================
+# IMAGE FORM
+# ======================================================
 def render_image_assessment_form():
-    st.markdown("### 🖼️ Image Description Assessment")
-
     with st.form("image_form"):
-        topic = st.text_input("Topic / Title *")
-        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Medium")
-        image_url = st.text_input("Image URL *")
-        prompt = st.text_area("Prompt *")
+        topic = st.text_input("Topic")
+        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"])
+        image_url = st.text_input("Image URL")
+        prompt = st.text_area("Prompt")
 
-        if image_url:
-            st.image(image_url, use_column_width=True)
-
-        submitted = st.form_submit_button("Create Assessment 🚀")
-
-        if submitted:
-            if not topic or not image_url or not prompt:
-                st.error("Fill all fields")
-                return
-
+        if st.form_submit_button("Create"):
             assessment = {
                 "id": generate_assessment_id(),
-                "type": ASSESSMENT_TYPE_IMAGE,
                 "topic": topic,
                 "difficulty": difficulty,
+                "type": ASSESSMENT_TYPE_IMAGE,
                 "image_url": image_url,
                 "prompt": prompt,
                 "created_by": st.session_state.username,
@@ -179,47 +199,33 @@ def render_image_assessment_form():
             data["assessments"].append(assessment)
             save_assessments(data)
 
-            st.success("✅ Assessment Created")
+            st.success("Assessment created")
             st.rerun()
 
 
-# ===================================================
-# FILL IN THE BLANK FORM
-# ===================================================
-
+# ======================================================
+# FILL BLANK FORM
+# ======================================================
 def render_fillblank_form():
-    st.markdown("### ✍️ Fill in the Blank Assessment")
-
     with st.form("fillblank_form"):
-        topic = st.text_input("Topic / Title *")
-        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"], value="Medium")
-        num = st.number_input("Number of Sentences", 1, 15, 5)
+        topic = st.text_input("Topic")
+        difficulty = st.select_slider("Difficulty", ["Easy", "Medium", "Hard"])
+        num = st.number_input("Sentences", 1, 10, 3)
 
         sentences = []
         for i in range(num):
-            sentence = st.text_input(f"Sentence {i+1}", key=f"fb_s_{i}")
-            blank = st.text_input(f"Missing Word {i+1}", key=f"fb_b_{i}")
+            s = st.text_input(f"Sentence {i+1}")
+            b = st.text_input(f"Blank {i+1}")
+            if "_____" in s:
+                sentences.append({"text": s, "blank": b})
 
-            if sentence and blank and "_____" in sentence:
-                sentences.append({
-                    "text": sentence.strip(),
-                    "blank": blank.strip().lower()
-                })
-
-        submitted = st.form_submit_button("Create Assessment 🚀")
-
-        if submitted:
-            if not topic or not sentences:
-                st.error("Add valid sentences with _____")
-                return
-
+        if st.form_submit_button("Create"):
             assessment = {
                 "id": generate_assessment_id(),
-                "type": ASSESSMENT_TYPE_FILLBLANK,
                 "topic": topic,
                 "difficulty": difficulty,
+                "type": ASSESSMENT_TYPE_FILLBLANK,
                 "sentences": sentences,
-                "total_sentences": len(sentences),
                 "created_by": st.session_state.username,
                 "created_at": datetime.now().isoformat()
             }
@@ -228,101 +234,72 @@ def render_fillblank_form():
             data["assessments"].append(assessment)
             save_assessments(data)
 
-            st.success("✅ Assessment Created")
+            st.success("Assessment created")
             st.rerun()
 
 
-# ===================================================
+# ======================================================
 # MY ASSESSMENTS
-# ===================================================
-
+# ======================================================
 def render_assessment_list():
-    st.markdown("### 📚 Your Assessments")
+    data = load_assessments().get("assessments", [])
+    mine = [a for a in data if a["created_by"] == st.session_state.username]
 
-    data = load_assessments()
-    assessments = [
-        a for a in data.get("assessments", [])
-        if a.get("created_by") == st.session_state.username
-    ]
+    for a in mine:
+        st.markdown(f"### 📘 {a['topic']}")
+        st.caption(a["type"])
 
-    if not assessments:
-        st.info("No assessments created yet")
-        return
-
-    for a in assessments:
-        st.markdown(
-            f"**📘 {a['topic']}** | {a['difficulty']} | {a['type']}"
-        )
+        if st.button("Delete", key=f"del_{a['id']}"):
+            d = load_assessments()
+            d["assessments"] = [x for x in d["assessments"] if x["id"] != a["id"]]
+            save_assessments(d)
+            st.success("Deleted")
+            st.rerun()
 
 
-# ===================================================
-# 📊 ANALYTICS & STUDENT PERFORMANCE
-# ===================================================
+# ======================================================
+# ANALYTICS + XAI + RAG
+# ======================================================
+def render_teacher_analytics():
+    st.markdown("### 📊 Student Performance")
 
-def render_teacher_stats():
-    st.markdown("### 📊 Student Performance Analytics")
-
-    assessments = load_assessments().get("assessments", [])
     results = load_results().get("submissions", [])
-
-    my_assessments = [
-        a for a in assessments
-        if a.get("created_by") == st.session_state.username
-    ]
-
-    if not my_assessments:
-        st.info("No assessments created yet")
-        return
-
-    assessment_map = {a["id"]: a["topic"] for a in my_assessments}
-    my_results = [r for r in results if r["assessment_id"] in assessment_map]
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Assessments", len(my_assessments))
-    col2.metric("Attempts", len(my_results))
-
-    avg = round(
-        sum(r["score"] for r in my_results) / len(my_results), 2
-    ) if my_results else 0
-
-    col3.metric("Avg Score", f"{avg}%")
-
-    if not my_results:
+    if not results:
         st.info("No student attempts yet")
         return
 
-    st.markdown("### 📊 Average Score Per Assessment")
+    # -------- BAR CHART --------
+    scores = {}
+    for r in results:
+        scores.setdefault(r["assessment_topic"], []).append(r["score"])
 
-    score_map = {}
-    for r in my_results:
-        score_map.setdefault(r["assessment_id"], []).append(r["score"])
+    avg_scores = {k: sum(v) / len(v) for k, v in scores.items()}
+    st.bar_chart(avg_scores)
 
-    chart_data = {
-        assessment_map[k]: round(sum(v) / len(v), 2)
-        for k, v in score_map.items()
-    }
+    # -------- STUDENT DETAILS --------
+    for r in results:
+        with st.expander(f"👤 {r['student']} — {r['assessment_topic']} ({r['score']}%)"):
 
-    st.bar_chart(chart_data)
+            for resp in r.get("responses", []):
+                st.markdown(f"### 🗣️ Word: **{resp.get('word','')}**")
+                st.write(f"**Student said:** {resp.get('transcription')}")
+                st.write(f"**Score:** {resp.get('score')}%")
 
-    st.markdown("### 📋 Student Answers")
-
-    for aid, title in assessment_map.items():
-        attempts = [r for r in my_results if r["assessment_id"] == aid]
-        if not attempts:
-            continue
-
-        with st.expander(f"{title} ({len(attempts)} attempts)"):
-            for r in attempts:
-                st.markdown(
-                    f"**👤 {r['student']} | Score: {r['score']}% | Accuracy: {r['accuracy']}%**"
+                # 🧠 SYSTEM EXPLANATION
+                explanation = generate_explanation(
+                    expected_text=resp.get("word", ""),
+                    spoken_text=resp.get("transcription", ""),
+                    word_score=resp.get("score", 0),
+                    missing_words=resp.get("missing_words", []),
+                    extra_words=resp.get("extra_words", []),
+                    phoneme_score=resp.get("phoneme_score")
                 )
-                for resp in r.get("responses", []):
-                    if "word" in resp:
-                        st.markdown(
-                            f"- 🗣️ {resp['word']} → {resp.get('transcription')} ({resp.get('score')}%)"
-                        )
-                    elif "sentence" in resp:
-                        st.markdown(
-                            f"- ✍️ {resp['sentence']} → {resp.get('transcription')} ({resp.get('score')}%)"
-                        )
+
+                st.markdown("### 🧠 System Explanation")
+                st.info(explanation)
                 st.markdown("---")
+
+            # 🤖 RAG THERAPY GUIDANCE
+            rag = rag_chatbot("therapy guidance", r)
+            st.markdown("### 🤖 Therapy Guidance")
+            st.write(rag)
