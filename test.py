@@ -1,31 +1,32 @@
-from ai_app.assessments import assess_speech
-from ai_app.rag import rag_chatbot
+from ai_app.assessments.assess import assess_speech
+from ai_app.rag.chatbot import rag_chatbot
 
-# 1️⃣ Choose an existing assessment ID from assessments.json
-ASSESSMENT_ID = "a1"
+# -----------------------------
+# CONFIG
+# -----------------------------
+TEST_ID = "test3"          # English basic test
+QUESTION_ID = "t3_q1"      # expected_text = "apple"
+AUDIO_PATH = "apple.mp3"   # 👈 your audio file
+USER_QUESTION = "Why did I lose marks and how can I improve?"
 
-# 2️⃣ Path to test audio file
-AUDIO_PATH = "ai_app/asr/sample2.mp3"
+def main():
+    print("\n=== AUDIO-BASED SPEECH ASSESSMENT ===\n")
 
-# 3️⃣ Run assessment pipeline
-print("\n--- RUNNING ASSESSMENT ---\n")
+    # 1️⃣ Run full assessment (ASR → scoring → explanation)
+    assessment_result = assess_speech(
+        test_id=TEST_ID,
+        question_id=QUESTION_ID,
+        audio_path=AUDIO_PATH
+    )
 
-assessment_result = assess_speech(
-    assessment_id=ASSESSMENT_ID,
-    audio_path=AUDIO_PATH
-)
+    # 2️⃣ RAG chatbot response
+    print("\n=== RAG CHATBOT RESPONSE ===\n")
+    chatbot_response = rag_chatbot(
+        user_question=USER_QUESTION,
+        assessment_result=assessment_result
+    )
 
-print("Assessment Result:")
-print(assessment_result)
+    print(chatbot_response)
 
-# 4️⃣ Ask RAG chatbot a question
-print("\n--- RAG CHATBOT RESPONSE ---\n")
-
-question = "Why did I lose marks and how can I improve?"
-
-rag_response = rag_chatbot(
-    user_question=question,
-    assessment_result=assessment_result
-)
-
-print(rag_response)
+if __name__ == "__main__":
+    main()

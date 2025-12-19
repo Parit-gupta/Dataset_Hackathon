@@ -1,2 +1,14 @@
-Retroflex 'ट' requires tongue curl.
-Dental 'त' uses flat tongue placement.
+Retroflex sounds like ट, ड require the tongue to curl back toward the palate.
+Dental sounds like त, द are produced with the tongue touching the teeth.
+Aspirated consonants like ख, घ, भ involve a strong burst of air.
+Unaspirated consonants lack a noticeable airflow release.
+English "th" sounds require air between the teeth.
+Long vowels must be held longer than short vowels.
+Short vowels should not be prolonged.
+Tamil retroflex sounds use a sharper tongue curl than Hindi.
+Consonant clusters require clean separation of sounds.
+Nasal sounds like म, न should resonate clearly through the nose.
+Voiced sounds vibrate the vocal cords.
+Unvoiced sounds do not vibrate the vocal cords.
+Ending consonants must be fully released.
+Syllable timing is critical in longer words.

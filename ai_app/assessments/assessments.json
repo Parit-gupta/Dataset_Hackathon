@@ -1,11 +1,58 @@
 {
-  "assessments": [
+  "tests": [
     {
-      "id": "a1",
+      "test_id": "test1",
+      "title": "Basic Pronunciation Test",
       "created_by": "therapist",
-      "type": "sentence",
-      "text": "ढांटा से टेस्टिंग में आपका स्वागत है",
-      "language": "hi"
+      "language": "hi",
+      "questions": [
+        { "question_id": "t1_q1", "type": "word", "expected_text": "टमाटर", "expected_phonemes": "ʈ ə m aː ʈ ə r" },
+        { "question_id": "t1_q2", "type": "word", "expected_text": "किताब", "expected_phonemes": "k ɪ t aː b" },
+        { "question_id": "t1_q3", "type": "word", "expected_text": "स्कूल", "expected_phonemes": "s k uː l" },
+        { "question_id": "t1_q4", "type": "word", "expected_text": "मौसम", "expected_phonemes": "m ɔː s ə m" },
+        { "question_id": "t1_q5", "type": "word", "expected_text": "पढ़ाई", "expected_phonemes": "p ə ɽʱ aː iː" }
+      ]
+    },
+
+    {
+      "test_id": "test2",
+      "title": "Advanced Pronunciation Test",
+      "created_by": "therapist",
+      "language": "hi",
+      "questions": [
+        { "question_id": "t2_q1", "type": "word", "expected_text": "स्वतंत्रता", "expected_phonemes": "s v ə t̪ ə n t̪ r ə t̪ aː" },
+        { "question_id": "t2_q2", "type": "word", "expected_text": "प्रशिक्षण", "expected_phonemes": "p r ə ʃ ɪ k ʂ ə ɳ" },
+        { "question_id": "t2_q3", "type": "word", "expected_text": "संस्कृति", "expected_phonemes": "s ə n s k r ɪ t̪ i" },
+        { "question_id": "t2_q4", "type": "word", "expected_text": "समय", "expected_phonemes": "s ə m ə j" }
+      ]
+    },
+
+    {
+      "test_id": "test3",
+      "title": "Basic English Pronunciation Test",
+      "created_by": "therapist",
+      "language": "en",
+      "questions": [
+        { "question_id": "t3_q1", "type": "word", "expected_text": "apple", "expected_phonemes": "æ p əl" },
+        { "question_id": "t3_q2", "type": "word", "expected_text": "school", "expected_phonemes": "s k uː l" },
+        { "question_id": "t3_q3", "type": "word", "expected_text": "table", "expected_phonemes": "t eɪ b əl" },
+        { "question_id": "t3_q4", "type": "word", "expected_text": "water", "expected_phonemes": "w ɔː t ər" },
+        { "question_id": "t3_q5", "type": "word", "expected_text": "mother", "expected_phonemes": "m ʌ ð ər" },
+        { "question_id": "t3_q6", "type": "word", "expected_text": "book", "expected_phonemes": "b ʊ k" },
+        { "question_id": "t3_q7", "type": "word", "expected_text": "happy", "expected_phonemes": "h æ p i" }
+      ]
+    },
+
+    {
+      "test_id": "test4",
+      "title": "Advanced English Pronunciation Test",
+      "created_by": "therapist",
+      "language": "en",
+      "questions": [
+        { "question_id": "t4_q1", "type": "word", "expected_text": "thought", "expected_phonemes": "θ ɔː t" },
+        { "question_id": "t4_q2", "type": "word", "expected_text": "through", "expected_phonemes": "θ r uː" },
+        { "question_id": "t4_q3", "type": "word", "expected_text": "measure", "expected_phonemes": "m ɛ ʒ ər" }
+      ]
     }
   ]
 }

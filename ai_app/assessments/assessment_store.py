@@ -1,30 +1,20 @@
 import json
 import os
-import uuid
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "assessments.json")
 
 
-def load_assessments():
+def load_tests():
     with open(FILE_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["assessments"]
+        return json.load(f)["tests"]
 
 
-def add_assessment(text, language, assessment_type, creator="therapist"):
-    data = {"assessments": load_assessments()}
+def get_test_by_id(test_id):
+    tests = load_tests()
+    return next(t for t in tests if t["test_id"] == test_id)
 
-    new_assessment = {
-        "id": str(uuid.uuid4())[:8],
-        "created_by": creator,
-        "type": assessment_type,   # word / sentence
-        "text": text.strip(),
-        "language": language
-    }
 
-    data["assessments"].append(new_assessment)
-
-    with open(FILE_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    return new_assessment
+def get_question(test_id, question_id):
+    test = get_test_by_id(test_id)
+    return next(q for q in test["questions"] if q["question_id"] == question_id)
