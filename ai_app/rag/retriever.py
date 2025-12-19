@@ -1,22 +1,26 @@
-from ai_app.rag.knowledge_base import PRONUNCIATION_KB
+from ai_app.rag.knowledge_loader import load_knowledge
 
+def retrieve_context(assessment_result):
+    """
+    Decide what knowledge is relevant for THIS submission.
+    """
+    score = assessment_result["score"]
+    missing = assessment_result["errors"]["missing_words"]
+    extra = assessment_result["errors"]["extra_words"]
 
-def retrieve_context(score, missing, extra):
-    context = []
-
-    if score < 60:
-        context.append("low_score")
+    knowledge_chunks = load_knowledge()
+    selected = []
 
     if missing:
-        context.append("missing_words")
+        selected.append("Some words were unclear or missing.")
 
     if extra:
-        context.append("extra_words")
+        selected.append("Some extra or mispronounced words were detected.")
 
-    context.append("improvement")
+    if score < 70:
+        selected.append("Overall pronunciation accuracy needs improvement.")
 
-    return [
-        item["content"]
-        for item in PRONUNCIATION_KB
-        if item["topic"] in context
-    ]
+    # Always add therapy tips
+    selected.extend(knowledge_chunks)
+
+    return selected
